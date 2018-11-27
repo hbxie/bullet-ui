@@ -15,6 +15,10 @@
       {{fa-icon "plus"}}
       New Query
     {{/link-to}}
+    {{#link-to "queries.new-bql" tagName="button" class="btn btn-primary btn-md add-button pull-left"}}
+      {{fa-icon "plus"}}
+      New BQL Query
+    {{/link-to}}
   </div>
     {{queries-table queries=model.queries
                     queryClick=(route-action "queryClick")

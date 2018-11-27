@@ -146,7 +146,9 @@ export default Service.extend(Filterizer, {
     this.setIfTruthy(aggregation, 'groups', groups);
     this.setIfTruthy(aggregation, 'metrics', metrics);
     aggregation.set('attributes', attributes);
-    aggregation.set('size', Number(json.size));
+    if (json.size != null) {
+      aggregation.set('size', Number(json.size));
+    }
 
     return aggregation;
   },

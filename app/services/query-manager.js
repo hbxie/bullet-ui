@@ -5,19 +5,20 @@
  */
 import EmberObject from '@ember/object';
 import Service, { inject as service } from '@ember/service';
-import { isBlank, isEmpty, isEqual } from '@ember/utils';
+import { isBlank, isEmpty, isEqual, isNone } from '@ember/utils';
 import { computed, get, getProperties } from '@ember/object';
 import { debounce } from '@ember/runloop';
 import { AGGREGATIONS, DISTRIBUTION_POINTS } from 'bullet-ui/models/aggregation';
 import { pluralize } from 'ember-inflector';
 import ZLib from 'npm:browserify-zlib';
 import Base64 from 'npm:urlsafe-base64';
-import { all, Promise, resolve } from 'rsvp';
+import { all, Promise, resolve, reject } from 'rsvp';
 import config from '../config/environment';
 
 export default Service.extend({
   store: service(),
   querier: service(),
+  corsRequest: service(),
   saveSegmentDebounceInterval: 100,
   debounceSegmentSaves: config.APP.SETTINGS.debounceSegmentSaves,
 
@@ -63,23 +64,27 @@ export default Service.extend({
       name: query.get('name'),
       duration: query.get('duration')
     });
+    return this.copy(query, copied).then(() => copied);
+  },
+
+  copy(sourceQuery, targetQuery) {
     // Assume prefetched
     let promises = [
-      this.copySingle(query, copied, 'filter', 'query', ['clause', 'summary']),
-      this.copySingle(query, copied, 'aggregation', 'query', ['type', 'size', 'attributes']),
-      query.get('isWindowless') ? resolve() :
-        this.copySingle(query, copied, 'window', 'query', ['emit', 'include']),
-      this.copyMultiple(query, copied, 'projection', 'query', ['field', 'name'])
+      this.copySingle(sourceQuery, targetQuery, 'filter', 'query', ['clause', 'summary']),
+      this.copySingle(sourceQuery, targetQuery, 'aggregation', 'query', ['type', 'size', 'attributes']),
+      sourceQuery.get('isWindowless') ? resolve() :
+        this.copySingle(sourceQuery, targetQuery, 'window', 'query', ['emit', 'include']),
+      this.copyMultiple(sourceQuery, targetQuery, 'projection', 'query', ['field', 'name'])
     ];
 
     return all(promises).then(() => {
-      let originalAggregation = query.get('aggregation');
-      let copiedAggregation = copied.get('aggregation');
+      let originalAggregation = sourceQuery.get('aggregation');
+      let copiedAggregation = targetQuery.get('aggregation');
       return all([
         this.copyMultiple(originalAggregation, copiedAggregation, 'group', 'aggregation', ['field', 'name']),
         this.copyMultiple(originalAggregation, copiedAggregation, 'metric', 'aggregation', ['type', 'field', 'name'])
       ]);
-    }).then(() => copied.save()).then(() => copied);
+    }).then(() => targetQuery.save());
   },
 
   encodeQuery(query) {
@@ -241,6 +246,34 @@ export default Service.extend({
     });
   },
 
+  refillIfBqlQuery(query) {
+    if (!query.get('isBql')) {
+      return resolve();
+    }
+    return this.get('corsRequest').request('http://localhost:9901/api/bullet/bql-to-json', {
+      method: 'POST',
+      contentType: 'text/plain',
+      data: query.get('bql')
+    }).then(
+      json => {
+      if (json.hasError) {
+        return reject(json.content);
+      }
+      let recreatedQuery = this.get('querier').recreate(JSON.parse(json.content));
+      return this.resetForBql(query).then(() => this.copy(recreatedQuery, query));
+    },
+    error => reject(error));
+  },
+
+  resetForBql(query) {
+    return all([
+      this.deleteSingle('filter', query, 'query'),
+      this.deleteMultiple('projections', query, 'query'),
+      this.deleteWindow(query),
+      this.deleteAggregation(query)
+    ]);
+  },
+
   cleanup(query) {
     return all([
       this.autoFill(query),
@@ -253,8 +286,12 @@ export default Service.extend({
     // The underlying relationship saving need not block query saving
     let promises = [
       query.get('filter').then(i => {
-        i.set('clause', clause);
-        i.set('summary', summary);
+        if (!isNone(clause)) {
+          i.set('clause', clause);
+        }
+        if (!isNone(summary)) {
+          i.set('summary', summary);
+        }
         return i.save();
       }),
       query.get('projections').then(p => p.forEach(i => i.save())),

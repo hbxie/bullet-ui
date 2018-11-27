@@ -4,7 +4,7 @@
  *  See the LICENSE file associated with the project for terms.
  */
 import { A } from '@ember/array';
-import { isEmpty } from '@ember/utils';
+import { isEmpty, isNone } from '@ember/utils';
 import EmberObject, { computed } from '@ember/object';
 import Component from '@ember/component';
 import Table from 'ember-light-table';
@@ -20,8 +20,13 @@ export default Component.extend(PaginatedTable, {
       if (!isEmpty(name)) {
         return name;
       }
-      // Stick a ~~~ in front so that generated summaries sort together toward one end
-      return `~~~${row.get('filterSummary')}${row.get('projectionsSummary')}${row.get('windowSummary')}`;
+      let bql = row.get('bql');
+      if (isNone(bql)) {
+        // Stick a ~~~ in front so that generated summaries sort together toward one end
+        return `~~~${row.get('filterSummary')}${row.get('projectionsSummary')}${row.get('windowSummary')}`;
+      } else {
+        return isEmpty(bql) ? 'Empty' : bql;
+      }
     },
 
     latestResult(row) {

@@ -3,7 +3,7 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-import { isEmpty, isEqual } from '@ember/utils';
+import { isEmpty, isEqual, isNone } from '@ember/utils';
 import { A } from '@ember/array';
 import { computed } from '@ember/object';
 import DS from 'ember-data';
@@ -50,7 +50,12 @@ export default DS.Model.extend(Validations, {
       return new Date(Date.now());
     }
   }),
+  bql: DS.attr('string'),
   results: DS.hasMany('result', { async: true, dependent: 'destroy' }),
+
+  isBql: computed('bql', function() {
+    return !isNone(this.get('bql'));
+  }).readOnly(),
 
   isWindowless: computed('window', function() {
     return isEmpty(this.get('window.id'));

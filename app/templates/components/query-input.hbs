@@ -10,9 +10,13 @@
       {{#simple-alert type="error"}}
         <span>OOPS! PLEASE FIX ALL ERRORS TO PROCEED</span>
         <ul class="error-list">
-          {{#each query.validations.messages as |message|}}
-            <li>{{message}}</li>
-          {{/each}}
+          {{#if hasBqlError}}
+            <li>{{bqlError}}</li>
+          {{else}}
+            {{#each query.validations.messages as |message|}}
+              <li>{{message}}</li>
+              {{/each}}
+          {{/if}}
         </ul>
       {{/simple-alert}}
     {{else if hasSaved}}
@@ -30,61 +34,74 @@
       </div>
     </div>
 
-    <div class="container-fluid filter-container">
-      <div class="section-header">
-        <h3 class="section-title">Filters</h3>
-        {{#info-popover title="Filters"}}
-          {{partial "partials/filter-help"}}
-        {{/info-popover}}
+    {{#if isBql}}
+      <div class="container-fluid bql-container">
+        <div class="section-header">
+          <h3 class="section-title">BQL</h3>
+          {{#info-popover title="BQL"}}
+            {{partial "partials/filter-help"}}
+          {{/info-popover}}
+        </div>
+
+        {{textarea value=query.bql placeholder="Example: SELECT * FROM STREAM(20000, TIME) LIMIT 1;" cols="150" rows="20"}}
       </div>
-      <div class="{{queryBuilderClass}}"></div>
-    </div>
-
-
-    <div class="container-fluid output-container">
-      <div class="section-header">
-        <h3 class="section-title">Output Data</h3>
-        {{#info-popover title="Output Data"}}
-          {{partial "partials/output-data-help"}}
-        {{/info-popover}}
-      </div>
-
-      {{output-data-input subfieldSuffix=subfieldSuffix subfieldSeparator=subfieldSeparator query=query forceDirty=hasError disabled=isListening columns=columns}}
-    </div>
-
-    <div class="container-fluid window-container">
-      <div class="section-header">
-        <h3 class="section-title">Windowing</h3>
-        {{#info-popover title="Window"}}
-          {{partial "partials/window-help"}}
-        {{/info-popover}}
+    {{else}}
+      <div class="container-fluid filter-container">
+        <div class="section-header">
+          <h3 class="section-title">Filters</h3>
+          {{#info-popover title="Filters"}}
+            {{partial "partials/filter-help"}}
+          {{/info-popover}}
+        </div>
+        <div class="{{queryBuilderClass}}"></div>
       </div>
 
-      {{window-input query=query disabled=isListening}}
-    </div>
 
+      <div class="container-fluid output-container">
+        <div class="section-header">
+          <h3 class="section-title">Output Data</h3>
+          {{#info-popover title="Output Data"}}
+            {{partial "partials/output-data-help"}}
+          {{/info-popover}}
+        </div>
 
-    <div class="container-fluid options-container">
-      <div class="section-header">
-        <h3 class="section-title">Query Stop Criteria</h3>
-        {{#info-popover title="Query Stop Criteria"}}
-          {{partial "partials/options-help"}}
-        {{/info-popover}}
+        {{output-data-input subfieldSuffix=subfieldSuffix subfieldSeparator=subfieldSeparator query=query forceDirty=hasError disabled=isListening columns=columns}}
       </div>
 
-      <div class="row">
-        {{#if showAggregationSize}}
-          {{validated-input inputClassNames="col-xs-2 aggregation-size" model=query.aggregation valuePath="size" fieldName="Maximum Result Count" type="number" placeholder="Number" disabled=isListening}}
-        {{/if}}
-        {{validated-input inputClassNames="col-xs-2 query-duration" model=query valuePath="duration" fieldName="Maximum Duration (seconds)" type="number" placeholder="Number" disabled=isListening}}
+      <div class="container-fluid window-container">
+        <div class="section-header">
+          <h3 class="section-title">Windowing</h3>
+          {{#info-popover title="Window"}}
+            {{partial "partials/window-help"}}
+          {{/info-popover}}
+        </div>
+
+        {{window-input query=query disabled=isListening}}
       </div>
-    </div>
+
+
+      <div class="container-fluid options-container">
+        <div class="section-header">
+          <h3 class="section-title">Query Stop Criteria</h3>
+          {{#info-popover title="Query Stop Criteria"}}
+            {{partial "partials/options-help"}}
+          {{/info-popover}}
+        </div>
+
+        <div class="row">
+          {{#if showAggregationSize}}
+            {{validated-input inputClassNames="col-xs-2 aggregation-size" model=query.aggregation valuePath="size" fieldName="Maximum Result Count" type="number" placeholder="Number" disabled=isListening}}
+          {{/if}}
+          {{validated-input inputClassNames="col-xs-2 query-duration" model=query valuePath="duration" fieldName="Maximum Duration (seconds)" type="number" placeholder="Number" disabled=isListening}}
+        </div>
+      </div>
+    {{/if}}
 
   </div>
 
   <div class="container-fluid control-container">
     <hr />
-    <button type="button" class="btn btn-primary btn-md submit-button" {{action "listen"}}>Run Query</button>
+    <button type="button" class="btn btn-primary btn-md submit-button" onclick={{action "listen"}}>Run Query</button>
     <button type="button" class="btn btn-default btn-md save-button" onclick={{action "save"}}>Save Query</button>
   </div>
 

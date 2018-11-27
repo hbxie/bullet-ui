@@ -14,6 +14,7 @@ const Router = EmberRouter.extend({
 Router.map(function() {
   this.route('queries', function() {
     this.route('new');
+    this.route('new-bql');
   });
   this.route('query', { path: 'query/:query_id' });
 

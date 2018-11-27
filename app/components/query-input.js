@@ -7,8 +7,9 @@ import { resolve, reject } from 'rsvp';
 import $ from 'jquery';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import Component from '@ember/component';
-import { isEqual } from '@ember/utils';
+import { isEqual, isNone } from '@ember/utils';
 import { SUBFIELD_SEPARATOR } from 'bullet-ui/models/column';
 import { AGGREGATIONS } from 'bullet-ui/models/aggregation';
 import BuilderAdapter from 'bullet-ui/mixins/builder-adapter';
@@ -31,6 +32,11 @@ export default Component.extend(BuilderAdapter, {
   isListening: false,
   hasError: false,
   hasSaved: false,
+  bqlError: null,
+
+  hasBqlError: computed('bqlError', function() {
+    return !isNone(this.get('bqlError'));
+  }).readOnly(),
 
   columns: computed('schema', function() {
     let schema = this.get('schema');
@@ -41,8 +47,13 @@ export default Component.extend(BuilderAdapter, {
     return isEqual(this.get('query.aggregation.type'), AGGREGATIONS.get('RAW')) && this.get('query.isWindowless');
   }),
 
+  isBql: alias('query.isBql').readOnly(),
+
   didInsertElement() {
     this._super(...arguments);
+    if (this.get('isBql')) {
+      return;
+    }
     let element = this.get('queryBuilderElement');
     let options = this.builderOptions();
     options.filters = this.get('columns');
@@ -85,22 +96,35 @@ export default Component.extend(BuilderAdapter, {
   validate() {
     this.reset();
     let query = this.get('query');
-    return this.get('queryManager').cleanup(query).then(() => {
-      return query.validate().then(hash => {
-        let isValid = this.isCurrentFilterValid() && hash.validations.get('isValid');
-        return isValid ? resolve() : reject();
-      });
-    });
+    return this.get('queryManager').refillIfBqlQuery(query).then(
+      () => {
+        return this.get('queryManager').cleanup(query).then(() => {
+          return query.validate().then(hash => {
+            let isValid = (query.get('isBql') ? true : this.isCurrentFilterValid()) && hash.validations.get('isValid');
+            return isValid ? resolve() : reject();
+          });
+        });
+      },
+      bqlError => reject(bqlError));
   },
 
   save() {
-    return this.validate().then(() => {
-      return this.get('queryManager').save(this.get('query'), this.currentFilterClause(), this.currentFilterSummary());
-    }, () => {
-      this.set('hasError', true);
-      this.get('scroller').scrollVertical('.validation-container');
-      return reject();
-    });
+    return this.validate().then(
+      () => {
+        let query = this.get('query');
+        if (query.get('isBql')) {
+          return this.get('queryManager').save(query);
+        }
+        return this.get('queryManager').save(query, this.currentFilterClause(), this.currentFilterSummary());
+      },
+      bqlError => {
+        if (!isNone(bqlError)) {
+          this.set('bqlError', bqlError);
+        }
+        this.set('hasError', true);
+        this.get('scroller').scrollVertical('.validation-container');
+        return reject();
+      });
   },
 
   actions: {
