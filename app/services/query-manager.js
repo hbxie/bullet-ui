@@ -12,12 +12,13 @@ import { AGGREGATIONS, DISTRIBUTION_POINTS } from 'bullet-ui/models/aggregation'
 import { pluralize } from 'ember-inflector';
 import ZLib from 'npm:browserify-zlib';
 import Base64 from 'npm:urlsafe-base64';
-import { all, Promise, resolve } from 'rsvp';
+import { all, Promise, resolve, reject } from 'rsvp';
 import config from '../config/environment';
 
 export default Service.extend({
   store: service(),
   querier: service(),
+  corsRequest: service(),
   saveSegmentDebounceInterval: 100,
   debounceSegmentSaves: config.APP.SETTINGS.debounceSegmentSaves,
 
@@ -133,6 +134,18 @@ export default Service.extend({
     });
   },
 
+  addBQLResult(id) {
+    return this.get('store').findRecord('bql-query', id).then(query => {
+      let result = this.get('store').createRecord('result', {
+        bqlQuery: query
+      });
+      query.set('lastRun', result.get('created'));
+      return query.save().then(() => {
+        return result.save();
+      });
+    });
+  },
+
   addSegment(result, data) {
     let position = result.get('windows.length');
     result.get('windows').pushObject({
@@ -239,6 +252,22 @@ export default Service.extend({
       }
       return resolve();
     });
+  },
+
+  validateBQLQuery(query) {
+    return this.get('corsRequest').request('http://localhost:9901/api/bullet/bql-to-json', {
+      method: 'POST',
+      contentType: 'text/plain',
+      data: query.get('bql')
+    }).then(
+      json => {
+      if(json.hasError) {
+        return reject(json.content);
+      }
+      query.set('jsonObject', JSON.parse(json.content));
+      return query.save();
+    },
+    error => reject(error));
   },
 
   cleanup(query) {

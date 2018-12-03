@@ -1,0 +1,21 @@
+{{!--
+  Copyright 2016, Yahoo Inc.
+  Licensed under the terms of the Apache License, Version 2.0.
+  See the LICENSE file associated with the project for terms.
+ --}}
+<div class="results-container">
+  <div class="section query-section">
+    <div class="information-container query-information">
+      {{query-information query=model.bqlQuery querySnapshot=model.querySnapshot
+                          reRunClick=(route-action "reRunClick" model.query)
+                          cancelClick=(route-action "cancelClick")
+                          queryClick=(route-action "queryClick" model.query)}}
+    </div>
+  </div>
+
+  <div class="section result-section">
+    <div class="result-viewer-container">
+      {{result-viewer result=model query=model.query}}
+    </div>
+  </div>
+</div>

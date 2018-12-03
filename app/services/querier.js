@@ -370,6 +370,10 @@ export default Service.extend(Filterizer, {
     this.get('stompWebsocket').startStompClient(this.reformat(data), handlers, context);
   },
 
+  sendBQLQuery(bqlQuery, handlers, context) {
+    this.get('stompWebsocket').startStompClient(bqlQuery.get('bql'), handlers, context);
+  },
+
   cancel() {
     this.get('stompWebsocket').disconnect();
   }

@@ -4,6 +4,7 @@
  *  See the LICENSE file associated with the project for terms.
  */
 import Mixin from '@ember/object/mixin';
+import { isNone } from '@ember/utils';
 
 export default Mixin.create({
   resultHandler(routeContext) {
@@ -26,7 +27,7 @@ export default Mixin.create({
       message: this.windowHandler
     };
     routeContext.set('savedResult', result);
-    routeContext.get('querier').send(query, handlers, routeContext);
+    this.sendQuery(query, handlers, routeContext);
   },
 
   lateSubmitQuery(query, routeContext) {
@@ -36,6 +37,14 @@ export default Mixin.create({
       message: this.windowHandler
     };
     // savedResult already exists and points to result
-    routeContext.get('querier').send(query, handlers, routeContext);
+    this.sendQuery(query, handlers, routeContext);
+  },
+
+  sendQuery(query, handlers, routeContext) {
+    if (isNone(query.get('bql'))) {
+      routeContext.get('querier').send(query, handlers, routeContext);
+    } else {
+      routeContext.get('querier').sendBQLQuery(query, handlers, routeContext);
+   }
   }
 });

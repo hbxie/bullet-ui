@@ -53,7 +53,7 @@ export default Service.extend({
     return () => {
       stompClient.subscribe(queryStompResponseChannel, onStompMessage);
       let request = {
-        content: JSON.stringify(data),
+        content: (typeof data) == 'string' ? data : JSON.stringify(data),
         type: NEW_QUERY_TYPE
       };
       stompClient.send(queryStompRequestChannel, { }, JSON.stringify(request));
@@ -71,7 +71,7 @@ export default Service.extend({
     let url = this.get('url');
     let ws = new SockJS(url, [], { sessionId: SESSION_LENGTH });
     let stompClient = Stomp.over(ws);
-    stompClient.debug = null;
+    //stompClient.debug = null;
 
     let onStompConnect = this.makeStompConnectHandler(stompClient, data, handlers, context);
     let onStompError = this.makeStompErrorHandler(handlers, context);
